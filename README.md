@@ -58,7 +58,7 @@ src/
 
 ## Current limitations
 
-- The website demo runs **simulated** classification — real mic input and backend connection coming in v2
+- The website demo runs **simulated** classification — real mic input and backend connection will be available later
 - Layer 1 direction-finding requires the physical ESP32-S3 hardware
 - `walk_signal_beep` and `speech` classes need separately sourced training data (not in UrbanSound8K or ESC-50)
 
