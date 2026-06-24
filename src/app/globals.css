@@ -1,0 +1,103 @@
+
+/* ─── SonicSense Design Tokens ─────────────────────────────────────────── */
+:root {
+  --bg:          #0A0E17;
+  --surface:     #111827;
+  --card:        #1A2332;
+  --border:      #1E2D42;
+  --faint:       #2A3B50;
+
+  --cyan:        #00D4FF;
+  --cyan-dim:    #00293A;
+  --red:         #FF4444;
+  --red-dim:     #3D1010;
+  --green:       #22C55E;
+  --green-dim:   #0D2D1A;
+  --amber:       #F59E0B;
+  --amber-dim:   #2D1F05;
+
+  --text:        #E8F4FD;
+  --muted:       #6B8FAF;
+  --font-mono:   "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
+
+/* ─── Base ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--cyan); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--faint); border-radius: 3px; }
+
+/* ─── Animations ─────────────────────────────────────────────────────────── */
+@keyframes radarPulse {
+  0%   { transform: scale(0.4); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ─── Utility classes ────────────────────────────────────────────────────── */
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 0.75rem;
+  opacity: 0.8;
+}
+
+.section-heading {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.75rem;
+  line-height: 1.2;
+}
+
+.section-body {
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 560px;
+  margin-bottom: 2rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.divider {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.divider::after {
+  content: "";
+  display: block;
+  height: 1px;
+  background: var(--border);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
