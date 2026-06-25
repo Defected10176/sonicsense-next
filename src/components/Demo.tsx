@@ -91,18 +91,7 @@ export default function Demo() {
       </p>
 
       {/* Demo mode badge */}
-      <div
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 8,
-          background: "var(--amber-dim)",
-          border: "1px solid rgba(245,158,11,0.3)",
-          borderRadius: 4,
-          padding: "6px 12px",
-          marginBottom: "1.5rem",
-        }}
-      >
+      <div className="demo-badge">
         <span
           style={{
             width: 6,
@@ -118,14 +107,7 @@ export default function Demo() {
       </div>
 
       {/* Dashboard grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 300px",
-          gap: 16,
-          alignItems: "start",
-        }}
-      >
+      <div className="demo-grid">
         {/* Left panel */}
         <div className="card" style={{ overflow: "hidden" }}>
           <DemoTopBar
@@ -349,14 +331,7 @@ function DemoStatusBar() {
   ] as const;
 
   return (
-    <div
-      style={{
-        borderTop: "1px solid var(--border)",
-        padding: "10px 14px",
-        display: "flex",
-        gap: 16,
-      }}
-    >
+    <div className="demo-status-bar">
       {stats.map(([key, val]) => (
         <div key={key}>
           <p className="mono" style={{ fontSize: 9, color: "var(--muted)", letterSpacing: 1 }}>
@@ -410,7 +385,7 @@ function AlertFeed({ alerts, recording }: { alerts: Alert[]; recording: boolean 
       </div>
 
       {/* Feed */}
-      <div style={{ height: 340, overflowY: "auto", padding: "8px 0" }}>
+      <div className="demo-feed-scroll">
         {alerts.length === 0 ? (
           <div
             style={{
