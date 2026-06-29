@@ -1,24 +1,21 @@
 
 /* ─── SonicSense Design Tokens ─────────────────────────────────────────── */
 :root {
-  --bg:          #0A0E17;
-  --surface:     #111827;
-  --card:        #1A2332;
-  --border:      #1E2D42;
-  --faint:       #2A3B50;
+  --bg:       #07140F;
+  --surface:  #0C201A;
+  --card:     #102A22;
+  --border:   #1B3A30;
+  --faint:    #234A3D;
 
-  --cyan:        #00D4FF;
-  --cyan-dim:    #00293A;
-  --red:         #FF4444;
-  --red-dim:     #3D1010;
-  --green:       #22C55E;
-  --green-dim:   #0D2D1A;
-  --amber:       #F59E0B;
-  --amber-dim:   #2D1F05;
+  --cyan:     #2DD4A7;   /* brand accent: emerald-mint */
+  --cyan-dim: #0A2C24;
+  --red:      #FF4444;  --red-dim:   #3D1010;
+  --green:    #22C55E;  --green-dim: #0D2D1A;
+  --amber:    #F59E0B;  --amber-dim: #2D1F05;
 
-  --text:        #E8F4FD;
-  --muted:       #6B8FAF;
-  --font-mono:   "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  --text:     #E8F6EF;
+  --muted:    #7BA596;
+  --font-mono:"JetBrains Mono","Fira Code",ui-monospace,monospace;
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────────── */

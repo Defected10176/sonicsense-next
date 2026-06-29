@@ -15,9 +15,9 @@ export default function Navbar() {
         background: "rgba(10, 14, 23, 0.55)",
         backdropFilter: "blur(24px) saturate(180%)",
         WebkitBackdropFilter: "blur(24px) saturate(180%)",
-        borderBottom: "1px solid rgba(0, 212, 255, 0.18)",
+        borderBottom: "1px solid rgba(45,212,167, 0.18)",
         boxShadow:
-          "0 4px 32px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(0,212,255,0.08) inset",
+          "0 4px 32px rgba(0, 0, 0, 0.5), 0 0 0 0.5px rgba(45,212,167,0.08) inset",
         padding: "0 1.5rem",
       }}
     >
@@ -30,7 +30,7 @@ export default function Navbar() {
           right: 0,
           height: 1,
           background:
-            "linear-gradient(90deg, transparent 0%, rgba(0,212,255,0.7) 20%, var(--cyan) 50%, rgba(0,212,255,0.7) 80%, transparent 100%)",
+            "linear-gradient(90deg, transparent 0%, rgba(45,212,167,0.7) 20%, var(--cyan) 50%, rgba(0,45,212,167,0.7) 80%, transparent 100%)",
           pointerEvents: "none",
         }}
       />
@@ -52,7 +52,7 @@ export default function Navbar() {
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 13,
-              color: "rgba(0,212,255,0.4)",
+              color: "rgba(45,212,167,0.4)",
             }}
           >
             [
@@ -83,14 +83,14 @@ export default function Navbar() {
               letterSpacing: 2,
               color: "var(--text)",
               textTransform: "uppercase",
-              textShadow: "0 0 12px rgba(0,212,255,0.25)",
+              textShadow: "0 0 12px rgba(0,45,212,167,0.25)",
             }}
           >
             Sonic
             <span
               style={{
                 color: "var(--cyan)",
-                textShadow: "0 0 10px rgba(0,212,255,0.6)",
+                textShadow: "0 0 10px rgba(0,45,212,167,0.6)",
               }}
             >
               Sense
@@ -101,7 +101,7 @@ export default function Navbar() {
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 13,
-              color: "rgba(0,212,255,0.4)",
+              color: "rgba(0,45,212,167,0.4)",
             }}
           >
             ]
@@ -164,14 +164,14 @@ export default function Navbar() {
                   textDecoration: "none",
                   color: isHovered ? "var(--cyan)" : "var(--muted)",
                   textShadow: isHovered
-                    ? "0 0 10px rgba(0,212,255,0.7)"
+                    ? "0 0 10px rgba(0,45,212,167,0.7)"
                     : "none",
                   transition: "color 0.2s ease, text-shadow 0.2s ease",
                 }}
               >
                 <span
                   style={{
-                    color: "rgba(0,212,255,0.4)",
+                    color: "rgba(0,45,212,167,0.4)",
                     fontWeight: 400,
                     fontSize: 9,
                   }}
