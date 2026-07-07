@@ -1,99 +1,63 @@
-import { PRIORITY_SOUNDS, BACKGROUND_SOUNDS } from "@/lib/constants";
+"use client";
+// Drop-in replacement for src/components/Sounds.tsx
+
+import { useLanguage } from "../i18n/LanguageContext";
+
+const PRIORITY_META = [
+  { icon: "🚨", c: "danger" as const },
+  { icon: "🚗", c: "danger" as const },
+  { icon: "👶", c: "warning" as const },
+  { icon: "🚪", c: "warning" as const },
+  { icon: "💥", c: "danger" as const },
+  { icon: "⏰", c: "warning" as const },
+  { icon: "💬", c: "cyan" as const },
+  { icon: "🚶", c: "cyan" as const },
+];
+
+const SOUND_COLORS = {
+  danger: { dim: "#3D1010", border: "rgba(255,68,68,0.3)" },
+  warning: { dim: "#2D1F05", border: "rgba(245,158,11,0.3)" },
+  cyan: { dim: "#0A2C24", border: "rgba(45,212,167,0.3)" },
+};
 
 export default function Sounds() {
-  return (
-    <section
-      id="sounds"
-      style={{ maxWidth: 900, margin: "0 auto", padding: "5rem 1.5rem" }}
-    >
-      <p className="section-label">Classification scope</p>
-      <h2 className="section-heading">What SonicSense listens for</h2>
+  const { t } = useLanguage();
 
-      {/* Priority sounds */}
-      <p
-        className="mono"
-        style={{
-          fontSize: 11,
-          color: "var(--red)",
-          letterSpacing: 2,
-          marginBottom: "1rem",
-          marginTop: "2rem",
-        }}
-      >
-        PRIORITY ALERTS
+  return (
+    <section id="sounds" style={{ maxWidth: 980, margin: "0 auto", padding: "4rem 1.5rem" }}>
+      <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", color: "var(--cyan)", margin: "0 0 0.75rem", opacity: 0.8 }}>
+        {t.soundsEyebrow}
       </p>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-          gap: 10,
-          marginBottom: "2rem",
-        }}
-      >
-        {PRIORITY_SOUNDS.map(({ label, icon, colorVar, dimVar }) => (
-          <div
-            key={label}
-            style={{
-              background: dimVar,
-              border: `1px solid ${colorVar}40`,
-              borderRadius: 6,
-              padding: "10px 12px",
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
-            <span style={{ fontSize: 18 }}>{icon}</span>
-            <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>
-              {label}
-            </span>
-          </div>
-        ))}
+      <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 600, color: "var(--text)", margin: "0 0 0.75rem", lineHeight: 1.2 }}>
+        {t.soundsHeading}
+      </h2>
+      <p style={{ color: "var(--muted)", lineHeight: 1.7, maxWidth: 560, margin: "0 0 2rem" }}>{t.soundsIntro}</p>
+
+      <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "var(--muted)", margin: "0 0 12px" }}>
+        {t.priorityLabel}
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10, marginBottom: "2rem" }}>
+        {t.prioritySounds.map((label, i) => {
+          const colors = SOUND_COLORS[PRIORITY_META[i].c];
+          return (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 10, background: colors.dim, border: `1px solid ${colors.border}`, borderRadius: 6, padding: "10px 12px" }}>
+              <span style={{ fontSize: 18 }}>{PRIORITY_META[i].icon}</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>{label}</span>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Background sounds */}
-      <p
-        className="mono"
-        style={{
-          fontSize: 11,
-          color: "var(--muted)",
-          letterSpacing: 2,
-          marginBottom: "1rem",
-        }}
-      >
-        BACKGROUND (SUPPRESSED)
+      <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, letterSpacing: 2, textTransform: "uppercase", color: "var(--muted)", margin: "0 0 12px" }}>
+        {t.backgroundLabel}
       </p>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-        {BACKGROUND_SOUNDS.map((s) => (
-          <span
-            key={s}
-            style={{
-              fontSize: 12,
-              color: "var(--muted)",
-              background: "var(--card)",
-              border: "1px solid var(--border)",
-              borderRadius: 4,
-              padding: "5px 12px",
-            }}
-          >
-            {s}
+        {t.backgroundSounds.map((bg) => (
+          <span key={bg} style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--muted)", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, padding: "6px 14px" }}>
+            {bg}
           </span>
         ))}
       </div>
-
-      {/* Dataset credits */}
-      <p style={{ fontSize: 12, color: "var(--muted)", marginTop: "1.5rem", lineHeight: 1.6 }}>
-        Trained on{" "}
-        <a href="https://urbansounddataset.weebly.com/urbansound8k.html">
-          UrbanSound8K
-        </a>{" "}
-        (street/outdoor sounds) and{" "}
-        <a href="https://github.com/karolpiczak/ESC-50">ESC-50</a>{" "}
-        (home/domestic sounds, CC BY-NC 3.0).
-        <br />
-        Missing from both datasets: pedestrian crossing signal and speech —
-        these require separately sourced data.
-      </p>
     </section>
   );
 }

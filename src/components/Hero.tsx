@@ -5,12 +5,12 @@
  *
  * Requires these keyframes in src/app/globals.css (add alongside radarPulse / blink):
  *
- *   
- *    
- *                            
- *   
- *                            
- *   
+ *   @keyframes radarSweep { to { transform: rotate(360deg); } }
+ *   @keyframes blipPulse  { 0%,100% { transform: translate(-50%,-50%) scale(1);   opacity: 1;   }
+ *                            50%     { transform: translate(-50%,-50%) scale(1.6); opacity: .45; } }
+ *   @keyframes orbFloat   { 0%,100% { transform: translate(0,0) scale(1); }
+ *                            50%     { transform: translate(26px,-30px) scale(1.08); } }
+ *   @keyframes floatY     { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
  */
 
 const HERO_STATS = [

@@ -1,0 +1,33 @@
+/* Paste into src/app/globals.css — replaces your :root and adds new keyframes. */
+
+:root {
+  --bg: #07140F;
+  --surface: #0C201A;
+  --card: #102A22;
+  --border: #1B3A30;
+  --faint: #234A3D;
+
+  --cyan: #2DD4A7;      /* brand accent: emerald-mint */
+  --cyan-dim: #0A2C24;
+  --red: #FF4444;       --red-dim: #3D1010;
+  --green: #22C55E;     --green-dim: #0D2D1A;
+  --amber: #F59E0B;     --amber-dim: #2D1F05;
+
+  --text: #E8F6EF;
+  --muted: #7BA596;
+  --font-mono: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+}
+
+body {
+  background: radial-gradient(120% 80% at 50% -10%, #0E2A22 0%, #091A15 45%, var(--bg) 100%);
+  color: var(--text);
+}
+
+@keyframes radarPulse { 0% { transform: scale(0.4); opacity: 0.8; } 100% { transform: scale(2.2); opacity: 0; } }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@keyframes alertIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes gridDrift { from { background-position: 0 0; } to { background-position: 0 -44px; } }
+@keyframes radarSweep { to { transform: rotate(360deg); } }
+@keyframes blipPulse { 0%, 100% { transform: translate(-50%,-50%) scale(1); opacity: 1; } 50% { transform: translate(-50%,-50%) scale(1.6); opacity: 0.45; } }
+@keyframes orbFloat { 0%, 100% { transform: translate(0,0) scale(1); } 50% { transform: translate(26px,-30px) scale(1.08); } }
+@keyframes floatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }

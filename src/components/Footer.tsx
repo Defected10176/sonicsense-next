@@ -1,55 +1,29 @@
-export default function Footer() {
-  const techStack = [
-    { label: "ESP32-S3",      href: null },
-    { label: "Python + Flask", href: null },
-    { label: "Next.js",       href: null },
-  ] as const;
+"use client";
+// Drop-in replacement for src/components/Footer.tsx
 
-  const datasets = [
-    { label: "UrbanSound8K", href: "https://urbansounddataset.weebly.com/urbansound8k.html" },
-    { label: "ESC-50",       href: "https://github.com/karolpiczak/ESC-50" },
-  ] as const;
+import { useLanguage } from "../i18n/LanguageContext";
+
+export default function Footer() {
+  const { t } = useLanguage();
 
   return (
-    <footer
-      style={{
-        borderTop: "1px solid var(--border)",
-        padding: "2rem 1.5rem",
-        background: "var(--surface)",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 900,
-          margin: "0 auto",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        {/* Logo */}
+    <footer style={{ borderTop: "1px solid var(--border)", marginTop: "3rem" }}>
+      <div style={{ maxWidth: 980, margin: "0 auto", padding: "2.5rem 1.5rem", display: "flex", flexWrap: "wrap", gap: 24, alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 16 }}>🔊</span>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "var(--muted)" }}>
+          <svg width="20" height="14" viewBox="0 0 20 14" fill="none" style={{ display: "block" }}>
+            <path d="M0 7 Q2 1,4 7 Q6 13,8 7 Q10 1,12 7 Q14 13,16 7 Q18 1,20 7" stroke="var(--cyan)" strokeWidth={1.5} strokeLinecap="round" fill="none" />
+          </svg>
+          <span style={{ fontFamily: "var(--font-mono)", fontWeight: 700, fontSize: 13, letterSpacing: 2, textTransform: "uppercase", color: "var(--text)" }}>
             Sonic<span style={{ color: "var(--cyan)" }}>Sense</span>
           </span>
         </div>
-
-        {/* Links */}
-        <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap" }}>
-          {techStack.map(({ label }) => (
-            <span key={label} style={{ fontSize: 12, color: "var(--faint)" }}>
-              {label}
-            </span>
-          ))}
-          {datasets.map(({ label, href }) => (
-            <a key={label} href={href} style={{ fontSize: 12, color: "var(--muted)" }}>
-              {label}
-            </a>
-          ))}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>ESP32-S3 · 4× MEMS</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>TinyML · TFLite</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>Whisper + LLM</span>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)" }}>Next.js · React</span>
         </div>
+        <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--faint)", margin: 0, width: "100%" }}>{t.footerTagline}</p>
       </div>
     </footer>
   );

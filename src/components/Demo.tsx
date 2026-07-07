@@ -1,494 +1,277 @@
 "use client";
+// Drop-in replacement for src/components/Demo.tsx
+// Frontend-only simulated demo. Swap startDemo()'s SIM-driven timers for real
+// mic capture + API calls when you wire up the backend.
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { SIMULATED_ALERTS, type AlertType } from "@/lib/constants";
+import { useEffect, useRef, useState } from "react";
+import { useLanguage } from "../i18n/LanguageContext";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface Alert {
-  id: number;
-  label: string;
-  type: AlertType;
-  conf: number;
-  ts: string;
+type AlertType = "danger" | "warning" | "info" | "bg";
+interface SimEvent { type: AlertType; conf: number; delayMs: number; }
+interface AlertItem { id: string; labelIdx: number; type: AlertType; conf: number; ts: string; }
+
+const SIM: SimEvent[] = [
+  { type: "danger", conf: 0.85, delayMs: 0 },
+  { type: "bg", conf: 0.8, delayMs: 2200 },
+  { type: "danger", conf: 0.91, delayMs: 5000 },
+  { type: "info", conf: 0.78, delayMs: 8500 },
+  { type: "warning", conf: 0.83, delayMs: 12000 },
+  { type: "bg", conf: 0.72, delayMs: 15500 },
+  { type: "danger", conf: 0.88, delayMs: 19000 },
+  { type: "bg", conf: 0.75, delayMs: 22000 },
+];
+
+const STYLE_MAP: Record<Exclude<AlertType, "bg">, { bg: string; border: string; color: string; bar: string }> = {
+  danger: { bg: "#3D1010", border: "#FF4444", color: "#FF4444", bar: "#FF4444" },
+  warning: { bg: "#2D1F05", border: "#F59E0B", color: "#F59E0B", bar: "#F59E0B" },
+  info: { bg: "#0A2A3A", border: "#38BDF8", color: "#38BDF8", bar: "#38BDF8" },
+};
+
+function fmt(ms: number) {
+  const s = Math.floor(ms / 1000);
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-export default function Demo() {
+export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRunDemo?: boolean; demoLoop?: boolean }) {
+  const { t } = useLanguage();
   const [recording, setRecording] = useState(false);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [elapsed, setElapsed] = useState(0);
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const alertTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const stopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const waveRef = useRef<HTMLCanvasElement>(null);
+  const specRef = useRef<HTMLCanvasElement>(null);
+  const recordingRef = useRef(false);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const raf1 = useRef(0);
+  const raf2 = useRef(0);
 
-  const stopDemo = useCallback(() => {
-    setRecording(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-    alertTimersRef.current.forEach(clearTimeout);
-    if (stopRef.current) clearTimeout(stopRef.current);
-  }, []);
+  useEffect(() => { recordingRef.current = recording; }, [recording]);
 
-  const startDemo = useCallback(() => {
-    if (recording) return;
-    setRecording(true);
+  const clearTimers = () => {
+    if (tickTimer.current) clearInterval(tickTimer.current);
+    if (stopTimer.current) clearTimeout(stopTimer.current);
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+  };
+
+  const stopDemo = () => { clearTimers(); setRecording(false); };
+
+  const startDemo = () => {
+    clearTimers();
     setAlerts([]);
     setElapsed(0);
+    setRecording(true);
 
-    timerRef.current = setInterval(() => {
-      setElapsed((e) => e + 100);
-    }, 100);
+    tickTimer.current = setInterval(() => setElapsed((e) => e + 100), 100);
 
-    alertTimersRef.current = SIMULATED_ALERTS.map((a) =>
+    timers.current = SIM.map((a, i) =>
       setTimeout(() => {
-        if (a.type !== "bg") {
-          setAlerts((prev) =>
-            [
-              {
-                id: Date.now(),
-                label: a.label,
-                type: a.type,
-                conf: a.conf,
-                ts: new Date().toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                }),
-              },
-              ...prev,
-            ].slice(0, 20)
-          );
-        }
+        if (a.type === "bg") return;
+        const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        setAlerts((prev) => [{ id: `${Date.now()}-${Math.random()}`, labelIdx: i, type: a.type, conf: a.conf, ts }, ...prev].slice(0, 20));
       }, a.delayMs)
     );
 
-    stopRef.current = setTimeout(stopDemo, 26000);
-  }, [recording, stopDemo]);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      alertTimersRef.current.forEach(clearTimeout);
-      if (stopRef.current) clearTimeout(stopRef.current);
-    };
-  }, []);
-
-  const fmtElapsed = (ms: number) => {
-    const s = Math.floor(ms / 1000);
-    return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+    stopTimer.current = setTimeout(() => {
+      if (demoLoop) startDemo();
+      else stopDemo();
+    }, 26000);
   };
 
-  return (
-    <section
-      id="demo"
-      style={{ maxWidth: 900, margin: "0 auto", padding: "5rem 1.5rem" }}
-    >
-      <p className="section-label">Live demo</p>
-      <h2 className="section-heading">Hear it in action</h2>
-      <p className="section-body">
-        Press record and make some noise — talk, play a video, or try honking.
-        The system classifies what it hears in real time.
-      </p>
+  const toggle = () => (recording ? stopDemo() : startDemo());
 
-      {/* Demo mode badge */}
-      <div className="demo-badge">
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            background: "var(--amber)",
-            display: "inline-block",
-          }}
-        />
-        <span className="mono" style={{ fontSize: 12, color: "var(--amber)" }}>
-          Demo mode · Simulated classification · Real mic in v2
-        </span>
-      </div>
-
-      {/* Dashboard grid */}
-      <div className="demo-grid">
-        {/* Left panel */}
-        <div className="card" style={{ overflow: "hidden" }}>
-          <DemoTopBar
-            recording={recording}
-            elapsed={fmtElapsed(elapsed)}
-            onStart={startDemo}
-            onStop={stopDemo}
-          />
-          <Waveform active={recording} />
-          <Spectrogram active={recording} />
-          <DemoStatusBar />
-        </div>
-
-        {/* Right panel: alert feed */}
-        <AlertFeed alerts={alerts} recording={recording} />
-      </div>
-    </section>
-  );
-}
-
-// ─── DemoTopBar ───────────────────────────────────────────────────────────────
-function DemoTopBar({
-  recording,
-  elapsed,
-  onStart,
-  onStop,
-}: {
-  recording: boolean;
-  elapsed: string;
-  onStart: () => void;
-  onStop: () => void;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "10px 14px",
-        borderBottom: "1px solid var(--border)",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            background: recording ? "var(--red)" : "var(--muted)",
-            display: "inline-block",
-            animation: recording ? "blink 1s ease-in-out infinite" : "none",
-          }}
-        />
-        <span
-          className="mono"
-          style={{
-            fontSize: 12,
-            color: recording ? "var(--red)" : "var(--muted)",
-          }}
-        >
-          {recording ? `REC ${elapsed}` : "STANDBY"}
-        </span>
-      </div>
-
-      <button
-        onClick={recording ? onStop : onStart}
-        style={{
-          background: recording ? "var(--red-dim)" : "var(--cyan-dim)",
-          border: `1px solid ${recording ? "var(--red)" : "var(--cyan)"}`,
-          color: recording ? "var(--red)" : "var(--cyan)",
-          borderRadius: 4,
-          padding: "5px 14px",
-          cursor: "pointer",
-          fontSize: 12,
-          fontWeight: 600,
-          fontFamily: "var(--font-mono)",
-          letterSpacing: 1,
-        }}
-      >
-        {recording ? "⏹ STOP" : "⏺ RECORD"}
-      </button>
-    </div>
-  );
-}
-
-// ─── Waveform canvas ──────────────────────────────────────────────────────────
-function Waveform({ active }: { active: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-  const phaseRef = useRef(0);
-
+  // waveform
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    const W = canvas.width;
-    const H = canvas.height;
-
+    const cv = waveRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d")!;
+    const W = cv.width, H = cv.height;
+    let phase = 0;
     const draw = () => {
+      const active = recordingRef.current;
       ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = "#0A0E17";
+      ctx.fillStyle = "#07140F";
       ctx.fillRect(0, 0, W, H);
 
-      ctx.beginPath();
-      ctx.strokeStyle = active ? "#00D4FF" : "#2A3B50";
-      ctx.lineWidth = 1.5;
-
+      const ys: number[] = [];
       for (let x = 0; x < W; x++) {
-        const t = x / W;
+        const tt = x / W;
         let y = H / 2;
         if (active) {
-          y +=
-            Math.sin(t * 14 + phaseRef.current) * 22 +
-            Math.sin(t * 7 + phaseRef.current * 1.3) * 12 +
-            Math.sin(t * 23 + phaseRef.current * 0.7) * 6 +
-            (Math.random() - 0.5) * 4;
+          y += Math.sin(tt * 14 + phase) * 22 + Math.sin(tt * 7 + phase * 1.3) * 12 + Math.sin(tt * 23 + phase * 0.7) * 6 + (Math.random() - 0.5) * 4;
         } else {
-          y += Math.sin(t * 4 + phaseRef.current * 0.2) * 3;
+          y += Math.sin(tt * 4 + phase * 0.2) * 3;
         }
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        ys.push(y);
       }
+
+      ctx.beginPath();
+      ctx.moveTo(0, ys[0]);
+      for (let x = 1; x < W; x++) ctx.lineTo(x, ys[x]);
+      ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      if (active) { grad.addColorStop(0, "rgba(45,212,167,0.38)"); grad.addColorStop(1, "rgba(45,212,167,0)"); }
+      else { grad.addColorStop(0, "rgba(35,74,61,0.35)"); grad.addColorStop(1, "rgba(35,74,61,0)"); }
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.strokeStyle = active ? "#2DD4A7" : "#234A3D";
+      ctx.lineWidth = 1.5;
+      for (let x = 0; x < W; x++) (x === 0 ? ctx.moveTo(x, ys[x]) : ctx.lineTo(x, ys[x]));
       ctx.stroke();
 
-      phaseRef.current += active ? 0.15 : 0.02;
-      animRef.current = requestAnimationFrame(draw);
+      phase += active ? 0.15 : 0.02;
+      raf1.current = requestAnimationFrame(draw);
     };
-
     draw();
-    return () => cancelAnimationFrame(animRef.current);
-  }, [active]);
+    return () => cancelAnimationFrame(raf1.current);
+  }, []);
 
-  return (
-    <div style={{ padding: "12px 14px 8px" }}>
-      <p
-        className="mono"
-        style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6, letterSpacing: 1 }}
-      >
-        WAVEFORM
-      </p>
-      <canvas
-        ref={canvasRef}
-        width={460}
-        height={90}
-        style={{ width: "100%", height: 90, borderRadius: 4, display: "block" }}
-      />
-    </div>
-  );
-}
-
-// ─── Spectrogram canvas ───────────────────────────────────────────────────────
-function Spectrogram({ active }: { active: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animRef = useRef<number>(0);
-
+  // spectrogram
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    const W = canvas.width;
-    const H = canvas.height;
-    ctx.fillStyle = "#0A0E17";
+    const cv = specRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d")!;
+    const W = cv.width, H = cv.height;
+    ctx.fillStyle = "#07140F";
     ctx.fillRect(0, 0, W, H);
-
     const draw = () => {
-      const imgData = ctx.getImageData(1, 0, W - 1, H);
-      ctx.putImageData(imgData, 0, 0);
-      ctx.fillStyle = "#0A0E17";
+      const img = ctx.getImageData(1, 0, W - 1, H);
+      ctx.putImageData(img, 0, 0);
+      ctx.fillStyle = "#07140F";
       ctx.fillRect(W - 1, 0, 1, H);
-
-      if (active) {
+      if (recordingRef.current) {
         for (let y = 0; y < H; y++) {
           const freq = 1 - y / H;
-          let energy =
-            (freq > 0.6 ? Math.random() * 0.2 : 0) +
-            (freq > 0.3 && freq < 0.6 ? Math.random() * 0.6 : 0) +
-            (freq < 0.3 ? Math.random() * 0.3 : 0);
+          let energy = (freq > 0.6 ? Math.random() * 0.2 : 0) + (freq > 0.3 && freq < 0.6 ? Math.random() * 0.6 : 0) + (freq < 0.3 ? Math.random() * 0.3 : 0);
           energy = Math.min(energy, 1);
-          ctx.fillStyle = `rgba(0,${Math.floor(energy * 180)},${Math.floor(energy * 255)},${energy})`;
+          ctx.fillStyle = `rgba(${Math.floor(energy * 70)},${Math.floor(energy * 220)},${Math.floor(energy * 165)},${energy})`;
           ctx.fillRect(W - 1, y, 1, 1);
         }
       }
-
-      animRef.current = requestAnimationFrame(draw);
+      raf2.current = requestAnimationFrame(draw);
     };
-
     draw();
-    return () => cancelAnimationFrame(animRef.current);
-  }, [active]);
+    return () => cancelAnimationFrame(raf2.current);
+  }, []);
+
+  useEffect(() => {
+    if (autoRunDemo) startDemo();
+    return clearTimers;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const recDotColor = recording ? "#FF4444" : "var(--muted)";
+  const recStatusText = recording ? `${t.recRecording} ${fmt(elapsed)}` : t.recStandby;
 
   return (
-    <div style={{ padding: "8px 14px 14px" }}>
-      <p
-        className="mono"
-        style={{ fontSize: 10, color: "var(--muted)", marginBottom: 6, letterSpacing: 1 }}
-      >
-        SPECTROGRAM · 0Hz → 8kHz
+    <section id="demo" style={{ maxWidth: 980, margin: "0 auto", padding: "4rem 1.5rem" }}>
+      <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", color: "var(--cyan)", margin: "0 0 0.75rem", opacity: 0.8 }}>
+        {t.demoEyebrow}
       </p>
-      <canvas
-        ref={canvasRef}
-        width={460}
-        height={80}
-        style={{ width: "100%", height: 80, borderRadius: 4, display: "block" }}
-      />
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-        {["0", "1k", "2k", "4k", "8k"].map((f) => (
-          <span key={f} className="mono" style={{ fontSize: 9, color: "var(--muted)" }}>
-            {f}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
+      <h2 style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 600, color: "var(--text)", margin: "0 0 0.75rem", lineHeight: 1.2 }}>{t.demoHeading}</h2>
+      <p style={{ color: "var(--muted)", lineHeight: 1.7, maxWidth: 560, margin: "0 0 2rem" }}>{t.demoIntro}</p>
 
-// ─── DemoStatusBar ────────────────────────────────────────────────────────────
-function DemoStatusBar() {
-  const stats = [
-    ["SAMPLE RATE", "16kHz"],
-    ["WINDOW",      "512ms"],
-    ["MODEL",       "CNN · Mock"],
-  ] as const;
-
-  return (
-    <div className="demo-status-bar">
-      {stats.map(([key, val]) => (
-        <div key={key}>
-          <p className="mono" style={{ fontSize: 9, color: "var(--muted)", letterSpacing: 1 }}>
-            {key}
-          </p>
-          <p className="mono" style={{ fontSize: 12, color: "var(--cyan)" }}>
-            {val}
-          </p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ─── AlertFeed ────────────────────────────────────────────────────────────────
-const ALERT_STYLES: Record<AlertType, { bg: string; border: string; color: string; label: string }> = {
-  danger:  { bg: "var(--red-dim)",   border: "var(--red)",   color: "var(--red)",   label: "ALERT" },
-  warning: { bg: "var(--amber-dim)", border: "var(--amber)", color: "var(--amber)", label: "ALERT" },
-  info:    { bg: "var(--cyan-dim)",  border: "var(--cyan)",  color: "var(--cyan)",  label: "INFO"  },
-  bg:      { bg: "#1A2332",          border: "#2A3B50",      color: "#6B8FAF",      label: "BG"   },
-};
-
-function AlertFeed({ alerts, recording }: { alerts: Alert[]; recording: boolean }) {
-  return (
-    <div className="card" style={{ overflow: "hidden" }}>
-      {/* Header */}
-      <div
-        style={{
-          padding: "10px 14px",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <span className="mono" style={{ fontSize: 11, color: "var(--muted)", letterSpacing: 1 }}>
-          ALERT FEED
-        </span>
-        <span
-          className="mono"
-          style={{
-            fontSize: 10,
-            color: "var(--muted)",
-            background: "var(--faint)",
-            padding: "2px 8px",
-            borderRadius: 3,
-          }}
-        >
-          {alerts.length}
-        </span>
+      <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 8, background: "#2D1F05", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 4, padding: "6px 12px", marginBottom: "1.5rem" }}>
+        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#F59E0B", display: "inline-block" }} />
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "#F59E0B" }}>{t.demoBadge}</span>
       </div>
 
-      {/* Feed */}
-      <div className="demo-feed-scroll">
-        {alerts.length === 0 ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              gap: 8,
-            }}
-          >
-            <div style={{ fontSize: 28, opacity: 0.3 }}>📡</div>
-            <p
-              className="mono"
-              style={{ fontSize: 11, color: "var(--muted)", textAlign: "center" }}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 16, alignItems: "start" }}>
+        {/* scope */}
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: recDotColor, display: "inline-block", animation: recording ? "blink 1s ease-in-out infinite" : undefined }} />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: recDotColor }}>{recStatusText}</span>
+            </div>
+            <button
+              onClick={toggle}
+              style={{
+                background: recording ? "#3D1010" : "#0A2C24", border: `1px solid ${recording ? "#FF4444" : "var(--cyan)"}`,
+                color: recording ? "#FF4444" : "var(--cyan)", borderRadius: 4, padding: "5px 14px", cursor: "pointer",
+                fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)", letterSpacing: 1,
+              }}
             >
-              {recording ? "Listening..." : "Press RECORD\nto start demo"}
-            </p>
+              {recording ? t.recBtnStop : t.recBtnRecord}
+            </button>
           </div>
-        ) : (
-          alerts.map((a) => {
-            const s = ALERT_STYLES[a.type];
-            const barColor =
-              a.type === "danger" ? "var(--red)" :
-              a.type === "warning" ? "var(--amber)" : "var(--cyan)";
 
-            return (
-              <div
-                key={a.id}
-                style={{
-                  padding: "10px 14px",
-                  borderBottom: "1px solid rgba(30,45,66,0.5)",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 4,
-                  }}
-                >
-                  <span
-                    className="mono"
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: 1,
-                      padding: "2px 6px",
-                      borderRadius: 3,
-                      background: s.bg,
-                      border: `1px solid ${s.border}`,
-                      color: s.color,
-                    }}
-                  >
-                    {s.label}
-                  </span>
-                  <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>
-                    {a.ts}
-                  </span>
-                </div>
+          <div style={{ padding: "12px 14px 8px" }}>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", margin: "0 0 6px", letterSpacing: 1 }}>{t.waveformLabel}</p>
+            <canvas ref={waveRef} width={460} height={90} style={{ width: "100%", height: 90, borderRadius: 4, display: "block" }} />
+          </div>
 
-                <p
-                  style={{
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: "var(--text)",
-                    marginBottom: 4,
-                  }}
-                >
-                  {a.label}
-                </p>
+          <div style={{ padding: "8px 14px 14px" }}>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", margin: "0 0 6px", letterSpacing: 1 }}>{t.spectrogramLabel}</p>
+            <canvas ref={specRef} width={460} height={80} style={{ width: "100%", height: 80, borderRadius: 4, display: "block" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+              {["0", "1k", "2k", "4k", "8k"].map((f) => (
+                <span key={f} style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--muted)" }}>{f}</span>
+              ))}
+            </div>
+          </div>
 
-                {/* Confidence bar */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <div
-                    style={{
-                      flex: 1,
-                      height: 3,
-                      borderRadius: 2,
-                      background: "var(--faint)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${Math.round(a.conf * 100)}%`,
-                        background: barColor,
-                        borderRadius: 2,
-                        transition: "width 0.4s ease",
-                      }}
-                    />
+          <div style={{ borderTop: "1px solid var(--border)", padding: "10px 14px", display: "flex", gap: 16 }}>
+            <div>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--muted)", letterSpacing: 1, margin: 0 }}>{t.sampleRateLabel}</p>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--cyan)", margin: 0 }}>16kHz</p>
+            </div>
+            <div>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--muted)", letterSpacing: 1, margin: 0 }}>{t.windowLabel}</p>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--cyan)", margin: 0 }}>512ms</p>
+            </div>
+            <div>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--muted)", letterSpacing: 1, margin: 0 }}>{t.modelLabel}</p>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--cyan)", margin: 0 }}>{t.modelValue}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* alert feed */}
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)", letterSpacing: 1 }}>{t.alertFeedLabel}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", background: "var(--faint)", padding: "2px 8px", borderRadius: 3 }}>{alerts.length}</span>
+          </div>
+          <div style={{ height: 340, overflowY: "auto", padding: "8px 0" }}>
+            {alerts.length > 0 ? (
+              alerts.map((a) => {
+                const s = a.type === "bg" ? STYLE_MAP.info : STYLE_MAP[a.type];
+                const pct = Math.round(a.conf * 100);
+                const badgeLabel = a.type === "info" ? t.badgeInfo : t.badgeAlert;
+                return (
+                  <div key={a.id} style={{ padding: "10px 14px", borderBottom: "1px solid rgba(30,45,66,0.5)", animation: "alertIn 0.3s ease" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "2px 6px", borderRadius: 3, background: s.bg, border: `1px solid ${s.border}`, color: s.color }}>
+                        {badgeLabel}
+                      </span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)" }}>{a.ts}</span>
+                    </div>
+                    <p style={{ fontWeight: 600, fontSize: 13, color: "var(--text)", margin: "0 0 4px" }}>{t.simLabels[a.labelIdx]}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ flex: 1, height: 3, borderRadius: 2, background: "var(--faint)", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${pct}%`, background: s.bar, borderRadius: 2, transition: "width 0.4s ease" }} />
+                      </div>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", minWidth: 36 }}>{pct}%</span>
+                    </div>
                   </div>
-                  <span className="mono" style={{ fontSize: 10, color: "var(--muted)", minWidth: 36 }}>
-                    {Math.round(a.conf * 100)}%
-                  </span>
-                </div>
+                );
+              })
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
+                <div style={{ fontSize: 28, opacity: 0.3 }}>📡</div>
+                <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)", textAlign: "center", whiteSpace: "pre-line" }}>
+                  {recording ? t.emptyListening : t.emptyPressRecord}
+                </p>
               </div>
-            );
-          })
-        )}
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }
