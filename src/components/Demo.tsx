@@ -1,88 +1,108 @@
 "use client";
-// Drop-in replacement for src/components/Demo.tsx
-// Frontend-only simulated demo. Swap startDemo()'s SIM-driven timers for real
-// mic capture + API calls when you wire up the backend.
+// Real backend-connected demo. Uploads 4 mono WAV files (front/right/back/left
+// mics) to the Flask backend's /api/analyze endpoint and renders the actual
+// GCC-PHAT direction estimate + mock classifier + mock speech result.
+//
+// Backend must be running locally: see sonicsense-backend/README (or app.py)
+// Default URL: http://localhost:5000 — override with NEXT_PUBLIC_API_URL.
 
 import { useEffect, useRef, useState } from "react";
 import { useLanguage } from "../i18n/LanguageContext";
 
-type AlertType = "danger" | "warning" | "info" | "bg";
-interface SimEvent { type: AlertType; conf: number; delayMs: number; }
-interface AlertItem { id: string; labelIdx: number; type: AlertType; conf: number; ts: string; }
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-const SIM: SimEvent[] = [
-  { type: "danger", conf: 0.85, delayMs: 0 },
-  { type: "bg", conf: 0.8, delayMs: 2200 },
-  { type: "danger", conf: 0.91, delayMs: 5000 },
-  { type: "info", conf: 0.78, delayMs: 8500 },
-  { type: "warning", conf: 0.83, delayMs: 12000 },
-  { type: "bg", conf: 0.72, delayMs: 15500 },
-  { type: "danger", conf: 0.88, delayMs: 19000 },
-  { type: "bg", conf: 0.75, delayMs: 22000 },
-];
+type SoundType = "danger" | "warning" | "info" | "bg";
 
-const STYLE_MAP: Record<Exclude<AlertType, "bg">, { bg: string; border: string; color: string; bar: string }> = {
+interface ClassificationResult {
+  label: string;
+  type: SoundType;
+  confidence: number;
+  mock?: boolean;
+}
+
+interface DirectionResult {
+  angle_deg: number;
+  label: string;
+  confidence: number;
+}
+
+interface SpeechResult {
+  transcript: string;
+  summary: string;
+  mock?: boolean;
+}
+
+interface AnalyzeResponse {
+  classification: ClassificationResult;
+  direction: DirectionResult;
+  speech: SpeechResult | null;
+  error?: string;
+}
+
+interface HistoryItem extends AnalyzeResponse {
+  id: string;
+  ts: string;
+}
+
+const STYLE_MAP: Record<Exclude<SoundType, "bg">, { bg: string; border: string; color: string; bar: string }> = {
   danger: { bg: "#3D1010", border: "#FF4444", color: "#FF4444", bar: "#FF4444" },
   warning: { bg: "#2D1F05", border: "#F59E0B", color: "#F59E0B", bar: "#F59E0B" },
   info: { bg: "#0A2A3A", border: "#38BDF8", color: "#38BDF8", bar: "#38BDF8" },
 };
 
-function fmt(ms: number) {
-  const s = Math.floor(ms / 1000);
-  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
-}
+const MIC_KEYS = ["mic1", "mic2", "mic3", "mic4"] as const;
 
-export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRunDemo?: boolean; demoLoop?: boolean }) {
+export default function Demo() {
   const { t } = useLanguage();
-  const [recording, setRecording] = useState(false);
-  const [alerts, setAlerts] = useState<AlertItem[]>([]);
-  const [elapsed, setElapsed] = useState(0);
+  const [files, setFiles] = useState<Record<string, File | null>>({ mic1: null, mic2: null, mic3: null, mic4: null });
+  const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   const waveRef = useRef<HTMLCanvasElement>(null);
   const specRef = useRef<HTMLCanvasElement>(null);
-  const recordingRef = useRef(false);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const tickTimer = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const analyzingRef = useRef(false);
   const raf1 = useRef(0);
   const raf2 = useRef(0);
 
-  useEffect(() => { recordingRef.current = recording; }, [recording]);
+  useEffect(() => { analyzingRef.current = analyzing; }, [analyzing]);
 
-  const clearTimers = () => {
-    if (tickTimer.current) clearInterval(tickTimer.current);
-    if (stopTimer.current) clearTimeout(stopTimer.current);
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
+  const allFilesPresent = MIC_KEYS.every((k) => files[k]);
+
+  const handleFile = (key: string, f: File | null) => {
+    setFiles((prev) => ({ ...prev, [key]: f }));
+    setError(null);
   };
 
-  const stopDemo = () => { clearTimers(); setRecording(false); };
+  const analyze = async () => {
+    if (!allFilesPresent) {
+      setError(t.uploadErrorMissing);
+      return;
+    }
+    setError(null);
+    setAnalyzing(true);
 
-  const startDemo = () => {
-    clearTimers();
-    setAlerts([]);
-    setElapsed(0);
-    setRecording(true);
+    try {
+      const form = new FormData();
+      MIC_KEYS.forEach((k) => form.append(k, files[k] as File));
 
-    tickTimer.current = setInterval(() => setElapsed((e) => e + 100), 100);
+      const res = await fetch(`${API_URL}/api/analyze`, { method: "POST", body: form });
+      const data: AnalyzeResponse = await res.json();
 
-    timers.current = SIM.map((a, i) =>
-      setTimeout(() => {
-        if (a.type === "bg") return;
-        const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-        setAlerts((prev) => [{ id: `${Date.now()}-${Math.random()}`, labelIdx: i, type: a.type, conf: a.conf, ts }, ...prev].slice(0, 20));
-      }, a.delayMs)
-    );
+      if (!res.ok || data.error) {
+        throw new Error(data.error || "Analysis failed");
+      }
 
-    stopTimer.current = setTimeout(() => {
-      if (demoLoop) startDemo();
-      else stopDemo();
-    }, 26000);
+      const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      setHistory((prev) => [{ ...data, id: `${Date.now()}-${Math.random()}`, ts }, ...prev].slice(0, 20));
+    } catch (e) {
+      setError(t.uploadErrorFailed);
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
-  const toggle = () => (recording ? stopDemo() : startDemo());
-
-  // waveform
+  // waveform (animates while analyzing)
   useEffect(() => {
     const cv = waveRef.current;
     if (!cv) return;
@@ -90,7 +110,7 @@ export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRu
     const W = cv.width, H = cv.height;
     let phase = 0;
     const draw = () => {
-      const active = recordingRef.current;
+      const active = analyzingRef.current;
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = "#07140F";
       ctx.fillRect(0, 0, W, H);
@@ -130,7 +150,7 @@ export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRu
     return () => cancelAnimationFrame(raf1.current);
   }, []);
 
-  // spectrogram
+  // spectrogram (animates while analyzing)
   useEffect(() => {
     const cv = specRef.current;
     if (!cv) return;
@@ -143,7 +163,7 @@ export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRu
       ctx.putImageData(img, 0, 0);
       ctx.fillStyle = "#07140F";
       ctx.fillRect(W - 1, 0, 1, H);
-      if (recordingRef.current) {
+      if (analyzingRef.current) {
         for (let y = 0; y < H; y++) {
           const freq = 1 - y / H;
           let energy = (freq > 0.6 ? Math.random() * 0.2 : 0) + (freq > 0.3 && freq < 0.6 ? Math.random() * 0.6 : 0) + (freq < 0.3 ? Math.random() * 0.3 : 0);
@@ -158,15 +178,6 @@ export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRu
     return () => cancelAnimationFrame(raf2.current);
   }, []);
 
-  useEffect(() => {
-    if (autoRunDemo) startDemo();
-    return clearTimers;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const recDotColor = recording ? "#FF4444" : "var(--muted)";
-  const recStatusText = recording ? `${t.recRecording} ${fmt(elapsed)}` : t.recStandby;
-
   return (
     <section id="demo" style={{ maxWidth: 980, margin: "0 auto", padding: "4rem 1.5rem" }}>
       <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: 3, textTransform: "uppercase", color: "var(--cyan)", margin: "0 0 0.75rem", opacity: 0.8 }}>
@@ -177,28 +188,67 @@ export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRu
 
       <div style={{ display: "inline-flex", alignItems: "center", flexWrap: "wrap", gap: 8, background: "#2D1F05", border: "1px solid rgba(245,158,11,0.3)", borderRadius: 4, padding: "6px 12px", marginBottom: "1.5rem" }}>
         <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#F59E0B", display: "inline-block" }} />
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "#F59E0B" }}>{t.demoBadge}</span>
+        <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "#F59E0B" }}>{t.mockNotice}</span>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 300px", gap: 16, alignItems: "start" }}>
-        {/* scope */}
+        {/* scope + upload */}
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+          <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+            <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", margin: "0 0 8px", letterSpacing: 1 }}>{t.uploadHint}</p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+              {MIC_KEYS.map((key, i) => (
+                <label
+                  key={key}
+                  style={{
+                    display: "flex", flexDirection: "column", gap: 4, cursor: "pointer",
+                    border: `1px dashed ${files[key] ? "var(--cyan)" : "var(--border)"}`,
+                    borderRadius: 4, padding: "8px 10px",
+                  }}
+                >
+                  <span style={{ fontFamily: "var(--font-mono)", fontSize: 9, letterSpacing: 1, color: files[key] ? "var(--cyan)" : "var(--muted)" }}>
+                    {t.uploadMicLabel[i]}
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {files[key]?.name ?? "—"}
+                  </span>
+                  <input
+                    type="file"
+                    accept="audio/wav,.wav"
+                    style={{ display: "none" }}
+                    onChange={(e) => handleFile(key, e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--border)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: recDotColor, display: "inline-block", animation: recording ? "blink 1s ease-in-out infinite" : undefined }} />
-              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: recDotColor }}>{recStatusText}</span>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: analyzing ? "#FF4444" : "var(--muted)", display: "inline-block", animation: analyzing ? "blink 1s ease-in-out infinite" : undefined }} />
+              <span style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: analyzing ? "#FF4444" : "var(--muted)" }}>
+                {analyzing ? t.analyzingLabel : t.recStandby}
+              </span>
             </div>
             <button
-              onClick={toggle}
+              onClick={analyze}
+              disabled={analyzing}
               style={{
-                background: recording ? "#3D1010" : "#0A2C24", border: `1px solid ${recording ? "#FF4444" : "var(--cyan)"}`,
-                color: recording ? "#FF4444" : "var(--cyan)", borderRadius: 4, padding: "5px 14px", cursor: "pointer",
+                background: "#0A2C24", border: "1px solid var(--cyan)",
+                color: "var(--cyan)", borderRadius: 4, padding: "5px 14px", cursor: analyzing ? "default" : "pointer",
                 fontSize: 12, fontWeight: 600, fontFamily: "var(--font-mono)", letterSpacing: 1,
+                opacity: analyzing ? 0.6 : 1,
               }}
             >
-              {recording ? t.recBtnStop : t.recBtnRecord}
+              {t.analyzeBtn}
             </button>
           </div>
+
+          {error && (
+            <div style={{ padding: "8px 14px", background: "#3D1010", borderBottom: "1px solid var(--border)" }}>
+              <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "#FF4444", margin: 0 }}>{error}</p>
+            </div>
+          )}
 
           <div style={{ padding: "12px 14px 8px" }}>
             <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", margin: "0 0 6px", letterSpacing: 1 }}>{t.waveformLabel}</p>
@@ -214,50 +264,43 @@ export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRu
               ))}
             </div>
           </div>
-
-          <div style={{ borderTop: "1px solid var(--border)", padding: "10px 14px", display: "flex", gap: 16 }}>
-            <div>
-              <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--muted)", letterSpacing: 1, margin: 0 }}>{t.sampleRateLabel}</p>
-              <p style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--cyan)", margin: 0 }}>16kHz</p>
-            </div>
-            <div>
-              <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--muted)", letterSpacing: 1, margin: 0 }}>{t.windowLabel}</p>
-              <p style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--cyan)", margin: 0 }}>512ms</p>
-            </div>
-            <div>
-              <p style={{ fontFamily: "var(--font-mono)", fontSize: 9, color: "var(--muted)", letterSpacing: 1, margin: 0 }}>{t.modelLabel}</p>
-              <p style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--cyan)", margin: 0 }}>{t.modelValue}</p>
-            </div>
-          </div>
         </div>
 
-        {/* alert feed */}
+        {/* results feed */}
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
           <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)", letterSpacing: 1 }}>{t.alertFeedLabel}</span>
-            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", background: "var(--faint)", padding: "2px 8px", borderRadius: 3 }}>{alerts.length}</span>
+            <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", background: "var(--faint)", padding: "2px 8px", borderRadius: 3 }}>{history.length}</span>
           </div>
-          <div style={{ height: 340, overflowY: "auto", padding: "8px 0" }}>
-            {alerts.length > 0 ? (
-              alerts.map((a) => {
-                const s = a.type === "bg" ? STYLE_MAP.info : STYLE_MAP[a.type];
-                const pct = Math.round(a.conf * 100);
-                const badgeLabel = a.type === "info" ? t.badgeInfo : t.badgeAlert;
+          <div style={{ height: 460, overflowY: "auto", padding: "8px 0" }}>
+            {history.length > 0 ? (
+              history.map((h) => {
+                const s = h.classification.type === "bg" ? STYLE_MAP.info : STYLE_MAP[h.classification.type];
+                const pct = Math.round(h.classification.confidence * 100);
+                const badgeLabel = h.classification.type === "info" ? t.badgeInfo : t.badgeAlert;
                 return (
-                  <div key={a.id} style={{ padding: "10px 14px", borderBottom: "1px solid rgba(30,45,66,0.5)", animation: "alertIn 0.3s ease" }}>
+                  <div key={h.id} style={{ padding: "10px 14px", borderBottom: "1px solid rgba(30,45,66,0.5)", animation: "alertIn 0.3s ease" }}>
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, fontWeight: 700, letterSpacing: 1, padding: "2px 6px", borderRadius: 3, background: s.bg, border: `1px solid ${s.border}`, color: s.color }}>
                         {badgeLabel}
                       </span>
-                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)" }}>{a.ts}</span>
+                      <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)" }}>{h.ts}</span>
                     </div>
-                    <p style={{ fontWeight: 600, fontSize: 13, color: "var(--text)", margin: "0 0 4px" }}>{t.simLabels[a.labelIdx]}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <p style={{ fontWeight: 600, fontSize: 13, color: "var(--text)", margin: "0 0 4px" }}>{h.classification.label}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                       <div style={{ flex: 1, height: 3, borderRadius: 2, background: "var(--faint)", overflow: "hidden" }}>
                         <div style={{ height: "100%", width: `${pct}%`, background: s.bar, borderRadius: 2, transition: "width 0.4s ease" }} />
                       </div>
                       <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", minWidth: 36 }}>{pct}%</span>
                     </div>
+                    <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--cyan)", margin: "0 0 2px" }}>
+                      {t.directionLabel}: {h.direction.label} ({h.direction.angle_deg}°)
+                    </p>
+                    {h.speech && (
+                      <p style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--muted)", margin: 0, fontStyle: "italic" }}>
+                        {t.speechLabel}: &ldquo;{h.speech.transcript}&rdquo;
+                      </p>
+                    )}
                   </div>
                 );
               })
@@ -265,7 +308,7 @@ export default function Demo({ autoRunDemo = false, demoLoop = false }: { autoRu
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
                 <div style={{ fontSize: 28, opacity: 0.3 }}>📡</div>
                 <p style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--muted)", textAlign: "center", whiteSpace: "pre-line" }}>
-                  {recording ? t.emptyListening : t.emptyPressRecord}
+                  {analyzing ? t.emptyListening : t.emptyPressRecord}
                 </p>
               </div>
             )}

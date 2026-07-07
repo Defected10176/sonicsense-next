@@ -54,6 +54,16 @@ export interface Translations {
   badgeInfo: string;
   simLabels: string[];
 
+  uploadMicLabel: string[]; // labels for mic1..mic4 upload slots
+  uploadHint: string;
+  analyzeBtn: string;
+  analyzingLabel: string;
+  uploadErrorMissing: string;
+  uploadErrorFailed: string;
+  directionLabel: string;
+  speechLabel: string;
+  mockNotice: string;
+
   soundsEyebrow: string;
   soundsHeading: string;
   soundsIntro: string;
@@ -132,6 +142,16 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     badgeInfo: "INFO",
     simLabels: ["Car horn", "Traffic noise", "Siren", "Speech detected", "Baby crying", "Footsteps", "Glass breaking", "Traffic noise"],
 
+    uploadMicLabel: ["MIC 1 · FRONT", "MIC 2 · RIGHT", "MIC 3 · BACK", "MIC 4 · LEFT"],
+    uploadHint: "Upload 4 mono WAV files captured from the front, right, back, and left mics.",
+    analyzeBtn: "▶ ANALYZE",
+    analyzingLabel: "ANALYZING...",
+    uploadErrorMissing: "Please upload all 4 mic files first.",
+    uploadErrorFailed: "Couldn't reach the backend. Is it running at localhost:5000?",
+    directionLabel: "DIRECTION",
+    speechLabel: "SPEECH",
+    mockNotice: "Mock classifier · Real GCC-PHAT direction finding",
+
     soundsEyebrow: "Sound library",
     soundsHeading: "What it listens for.",
     soundsIntro:
@@ -209,6 +229,16 @@ export const TRANSLATIONS: Record<LangCode, Translations> = {
     badgeAlert: "แจ้งเตือน",
     badgeInfo: "ข้อมูล",
     simLabels: ["เสียงแตรรถ", "เสียงจราจร", "เสียงไซเรน", "ตรวจพบเสียงพูด", "เสียงเด็กร้องไห้", "เสียงฝีเท้า", "เสียงกระจกแตก", "เสียงจราจร"],
+
+    uploadMicLabel: ["ไมค์ 1 · หน้า", "ไมค์ 2 · ขวา", "ไมค์ 3 · หลัง", "ไมค์ 4 · ซ้าย"],
+    uploadHint: "อัปโหลดไฟล์ WAV โมโนทั้ง 4 ไฟล์ จากไมค์หน้า ขวา หลัง และซ้าย",
+    analyzeBtn: "▶ วิเคราะห์",
+    analyzingLabel: "กำลังวิเคราะห์...",
+    uploadErrorMissing: "กรุณาอัปโหลดไฟล์ไมค์ให้ครบทั้ง 4 ไฟล์ก่อน",
+    uploadErrorFailed: "เชื่อมต่อ backend ไม่ได้ ตรวจสอบว่ารันอยู่ที่ localhost:5000 หรือไม่",
+    directionLabel: "ทิศทาง",
+    speechLabel: "คำพูด",
+    mockNotice: "ตัวจำแนกเป็นแบบจำลอง · การหาทิศทางด้วย GCC-PHAT เป็นของจริง",
 
     soundsEyebrow: "คลังเสียง",
     soundsHeading: "เสียงที่ระบบรับฟัง",
